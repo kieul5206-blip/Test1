@@ -1,0 +1,369 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local Player = Players.LocalPlayer
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ModernHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.new(0, 500, 0, 330)
+Main.Position = UDim2.new(0.5, -250, 0.5, -165)
+Main.BackgroundColor3 = Color3.fromRGB(17, 17, 23)
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = Main
+
+local Top = Instance.new("Frame")
+Top.Name = "Top"
+Top.Size = UDim2.new(1, 0, 0, 55)
+Top.BackgroundColor3 = Color3.fromRGB(25, 25, 33)
+Top.BorderSizePixel = 0
+Top.Active = true
+Top.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -130, 1, 0)
+Title.Position = UDim2.new(0, 18, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "MODERN HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 19
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Top
+
+local Minimize = Instance.new("TextButton")
+Minimize.Size = UDim2.new(0, 38, 0, 36)
+Minimize.Position = UDim2.new(1, -85, 0, 9)
+Minimize.BackgroundColor3 = Color3.fromRGB(43, 43, 55)
+Minimize.Text = "-"
+Minimize.TextColor3 = Color3.fromRGB(255, 255, 255)
+Minimize.TextSize = 20
+Minimize.Font = Enum.Font.GothamBold
+Minimize.BorderSizePixel = 0
+Minimize.Parent = Top
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 9)
+MinCorner.Parent = Minimize
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.new(0, 38, 0, 36)
+Close.Position = UDim2.new(1, -43, 0, 9)
+Close.BackgroundColor3 = Color3.fromRGB(43, 43, 55)
+Close.Text = "X"
+Close.TextColor3 = Color3.fromRGB(255, 255, 255)
+Close.TextSize = 18
+Close.Font = Enum.Font.GothamBold
+Close.BorderSizePixel = 0
+Close.Parent = Top
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 9)
+CloseCorner.Parent = Close
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.new(0, 135, 1, -55)
+Sidebar.Position = UDim2.new(0, 0, 0, 55)
+Sidebar.BackgroundColor3 = Color3.fromRGB(21, 21, 28)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = Main
+
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Size = UDim2.new(1, -150, 1, -70)
+Content.Position = UDim2.new(0, 145, 0, 65)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+local Pages = {}
+local TabButtons = {}
+
+local function CreatePage(PageName)
+	local Page = Instance.new("Frame")
+	Page.Name = PageName
+	Page.Size = UDim2.new(1, 0, 1, 0)
+	Page.BackgroundTransparency = 1
+	Page.Visible = false
+	Page.Parent = Content
+
+	Pages[PageName] = Page
+
+	local Header = Instance.new("TextLabel")
+	Header.Size = UDim2.new(1, 0, 0, 35)
+	Header.BackgroundTransparency = 1
+	Header.Text = PageName
+	Header.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Header.TextSize = 21
+	Header.Font = Enum.Font.GothamBold
+	Header.TextXAlignment = Enum.TextXAlignment.Left
+	Header.Parent = Page
+
+	return Page
+end
+
+local HomePage = CreatePage("Home")
+local PlayerPage = CreatePage("Player")
+local VisualPage = CreatePage("Visual")
+local SettingsPage = CreatePage("Settings")
+
+local function AddInfo(Page, Text, Y)
+	local Label = Instance.new("TextLabel")
+	Label.Size = UDim2.new(1, -5, 0, 35)
+	Label.Position = UDim2.new(0, 0, 0, Y)
+	Label.BackgroundTransparency = 1
+	Label.Text = Text
+	Label.TextColor3 = Color3.fromRGB(190, 190, 200)
+	Label.TextSize = 14
+	Label.Font = Enum.Font.Gotham
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = Page
+end
+
+AddInfo(HomePage, "Welcome to Modern Hub", 45)
+AddInfo(HomePage, "Select a tab from the left menu.", 80)
+AddInfo(HomePage, "Mobile and PC supported.", 115)
+
+local function CreateToggle(Page, Text, Y, Callback)
+	local Button = Instance.new("TextButton")
+	Button.Size = UDim2.new(1, -5, 0, 46)
+	Button.Position = UDim2.new(0, 0, 0, Y)
+	Button.BackgroundColor3 = Color3.fromRGB(29, 29, 39)
+	Button.Text = ""
+	Button.AutoButtonColor = false
+	Button.BorderSizePixel = 0
+	Button.Parent = Page
+
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 10)
+	Corner.Parent = Button
+
+	local Label = Instance.new("TextLabel")
+	Label.Size = UDim2.new(1, -75, 1, 0)
+	Label.Position = UDim2.new(0, 14, 0, 0)
+	Label.BackgroundTransparency = 1
+	Label.Text = Text
+	Label.TextColor3 = Color3.fromRGB(235, 235, 240)
+	Label.TextSize = 14
+	Label.Font = Enum.Font.GothamSemibold
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = Button
+
+	local Switch = Instance.new("Frame")
+	Switch.Size = UDim2.new(0, 46, 0, 24)
+	Switch.Position = UDim2.new(1, -58, 0.5, -12)
+	Switch.BackgroundColor3 = Color3.fromRGB(55, 55, 67)
+	Switch.BorderSizePixel = 0
+	Switch.Parent = Button
+
+	local SwitchCorner = Instance.new("UICorner")
+	SwitchCorner.CornerRadius = UDim.new(1, 0)
+	SwitchCorner.Parent = Switch
+
+	local Dot = Instance.new("Frame")
+	Dot.Size = UDim2.new(0, 18, 0, 18)
+	Dot.Position = UDim2.new(0, 3, 0.5, -9)
+	Dot.BackgroundColor3 = Color3.fromRGB(230, 230, 235)
+	Dot.BorderSizePixel = 0
+	Dot.Parent = Switch
+
+	local DotCorner = Instance.new("UICorner")
+	DotCorner.CornerRadius = UDim.new(1, 0)
+	DotCorner.Parent = Dot
+
+	local Enabled = false
+
+	local function SetState(State)
+		Enabled = State
+
+		local SwitchColor
+		local DotPosition
+
+		if Enabled then
+			SwitchColor = Color3.fromRGB(75, 145, 255)
+			DotPosition = UDim2.new(1, -21, 0.5, -9)
+		else
+			SwitchColor = Color3.fromRGB(55, 55, 67)
+			DotPosition = UDim2.new(0, 3, 0.5, -9)
+		end
+
+		TweenService:Create(
+			Switch,
+			TweenInfo.new(0.15),
+			{BackgroundColor3 = SwitchColor}
+		):Play()
+
+		TweenService:Create(
+			Dot,
+			TweenInfo.new(0.15),
+			{Position = DotPosition}
+		):Play()
+
+		if Callback then
+			Callback(Enabled)
+		end
+	end
+
+	Button.Activated:Connect(function()
+		SetState(not Enabled)
+	end)
+
+	return SetState
+end
+
+CreateToggle(PlayerPage, "WalkSpeed", 45, function(State)
+	print("WalkSpeed:", State)
+end)
+
+CreateToggle(PlayerPage, "JumpPower", 100, function(State)
+	print("JumpPower:", State)
+end)
+
+CreateToggle(PlayerPage, "Infinite Jump", 155, function(State)
+	print("Infinite Jump:", State)
+end)
+
+CreateToggle(VisualPage, "ESP Player", 45, function(State)
+	print("ESP Player:", State)
+end)
+
+CreateToggle(VisualPage, "ESP NPC", 100, function(State)
+	print("ESP NPC:", State)
+end)
+
+CreateToggle(VisualPage, "Player Names", 155, function(State)
+	print("Player Names:", State)
+end)
+
+CreateToggle(SettingsPage, "UI Animation", 45, function(State)
+	print("UI Animation:", State)
+end)
+
+CreateToggle(SettingsPage, "Notifications", 100, function(State)
+	print("Notifications:", State)
+end)
+
+local function CreateTab(Text, Y, PageName)
+	local Button = Instance.new("TextButton")
+	Button.Size = UDim2.new(1, -16, 0, 44)
+	Button.Position = UDim2.new(0, 8, 0, Y)
+	Button.BackgroundColor3 = Color3.fromRGB(29, 29, 38)
+	Button.Text = Text
+	Button.TextColor3 = Color3.fromRGB(210, 210, 220)
+	Button.TextSize = 14
+	Button.Font = Enum.Font.GothamSemibold
+	Button.BorderSizePixel = 0
+	Button.AutoButtonColor = false
+	Button.Parent = Sidebar
+
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 9)
+	Corner.Parent = Button
+
+	TabButtons[PageName] = Button
+
+	Button.Activated:Connect(function()
+		for Name, Page in pairs(Pages) do
+			Page.Visible = (Name == PageName)
+
+			if TabButtons[Name] then
+				if Name == PageName then
+					TabButtons[Name].BackgroundColor3 = Color3.fromRGB(65, 105, 180)
+				else
+					TabButtons[Name].BackgroundColor3 = Color3.fromRGB(29, 29, 38)
+				end
+			end
+		end
+	end)
+
+	return Button
+end
+
+CreateTab("Home", 12, "Home")
+CreateTab("Player", 62, "Player")
+CreateTab("Visual", 112, "Visual")
+CreateTab("Settings", 162, "Settings")
+
+Pages.Home.Visible = true
+TabButtons.Home.BackgroundColor3 = Color3.fromRGB(65, 105, 180)
+
+local MiniButton = Instance.new("TextButton")
+MiniButton.Size = UDim2.new(0, 55, 0, 55)
+MiniButton.Position = UDim2.new(0, 20, 0.5, -27)
+MiniButton.BackgroundColor3 = Color3.fromRGB(25, 25, 33)
+MiniButton.Text = "MENU"
+MiniButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MiniButton.TextSize = 12
+MiniButton.Font = Enum.Font.GothamBold
+MiniButton.BorderSizePixel = 0
+MiniButton.Visible = false
+MiniButton.Parent = ScreenGui
+
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(0, 15)
+MiniCorner.Parent = MiniButton
+
+Minimize.Activated:Connect(function()
+	Main.Visible = false
+	MiniButton.Visible = true
+end)
+
+MiniButton.Activated:Connect(function()
+	Main.Visible = true
+	MiniButton.Visible = false
+end)
+
+Close.Activated:Connect(function()
+	ScreenGui:Destroy()
+end)
+
+local Dragging = false
+local DragStart
+local StartPosition
+
+Top.InputBegan:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		Dragging = true
+		DragStart = Input.Position
+		StartPosition = Main.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(Input)
+	if not Dragging then
+		return
+	end
+
+	if Input.UserInputType == Enum.UserInputType.MouseMovement
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		local Delta = Input.Position - DragStart
+
+		Main.Position = UDim2.new(
+			StartPosition.X.Scale,
+			StartPosition.X.Offset + Delta.X,
+			StartPosition.Y.Scale,
+			StartPosition.Y.Offset + Delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		Dragging = false
+	end
+end)
