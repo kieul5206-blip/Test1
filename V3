@@ -1,0 +1,954 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+--==================================================
+-- CONFIG
+--==================================================
+
+local WalkSpeed = 16
+local JumpPower = 50
+local AuraRadius = 50
+
+local AutoFarm = false
+local AutoQuest = false
+local DamageAura = false
+local InfiniteJump = false
+local NoClip = false
+local ESPEnabled = false
+
+local SelectedTarget = "Bandit"
+
+local Targets = {
+	"Bandit",
+	"Monkey",
+	"Gorilla",
+	"The Gorilla King",
+	"Pirate",
+	"Brute",
+	"Desert Bandit",
+	"Desert Officer",
+	"Snow Bandit",
+	"Snowman",
+	"Yeti",
+	"Patrol",
+	"Advanced Patrol",
+	"Vice Admiral",
+	"Warden",
+	"Chief Warden",
+	"Swan",
+	"Toga Warrior",
+	"Gladiator",
+	"Fishman Warrior",
+	"Fishman Commando",
+	"Fishman Lord",
+	"God's Guard",
+	"Shaman",
+	"Master Sky Trooper",
+	"Royal Squad",
+	"Military Soldier",
+	"Military Spy",
+	"Magma General",
+	"Saber Expert",
+	"The Saw"
+}
+
+--==================================================
+-- HELPERS
+--==================================================
+
+local function New(class, props, parent)
+	local object = Instance.new(class)
+
+	for property, value in pairs(props or {}) do
+		object[property] = value
+	end
+
+	object.Parent = parent
+	return object
+end
+
+local function Corner(object, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 8)
+	corner.Parent = object
+end
+
+local function Stroke(object, transparency)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(65, 65, 80)
+	stroke.Transparency = transparency or 0.35
+	stroke.Thickness = 1
+	stroke.Parent = object
+	return stroke
+end
+
+local function Tween(object, properties, duration)
+	TweenService:Create(
+		object,
+		TweenInfo.new(
+			duration or 0.2,
+			Enum.EasingStyle.Quart,
+			Enum.EasingDirection.Out
+		),
+		properties
+	):Play()
+end
+
+local function GetCharacter()
+	return Player.Character
+end
+
+local function GetRoot()
+	local character = GetCharacter()
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+local function GetHumanoid()
+	local character = GetCharacter()
+	return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+--==================================================
+-- GUI
+--==================================================
+
+local GUI = New("ScreenGui", {
+	Name = "Pepsihub",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+}, PlayerGui)
+
+local Main = New("Frame", {
+	Size = UDim2.fromOffset(620, 410),
+	Position = UDim2.new(0.5, -310, 0.5, -205),
+	BackgroundColor3 = Color3.fromRGB(12, 13, 18),
+	BorderSizePixel = 0
+}, GUI)
+
+Corner(Main, 16)
+Stroke(Main, 0.15)
+
+local Top = New("Frame", {
+	Size = UDim2.new(1, 0, 0, 62),
+	BackgroundColor3 = Color3.fromRGB(17, 18, 25),
+	BorderSizePixel = 0
+}, Main)
+
+Corner(Top, 16)
+
+New("Frame", {
+	Size = UDim2.new(1, 0, 0, 2),
+	Position = UDim2.new(0, 0, 1, -2),
+	BackgroundColor3 = Color3.fromRGB(80, 145, 255),
+	BorderSizePixel = 0
+}, Top)
+
+local Logo = New("Frame", {
+	Size = UDim2.fromOffset(40, 40),
+	Position = UDim2.fromOffset(12, 11),
+	BackgroundColor3 = Color3.fromRGB(70, 130, 255),
+	BorderSizePixel = 0
+}, Top)
+
+Corner(Logo, 11)
+
+New("TextLabel", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	Text = "P",
+	TextColor3 = Color3.new(1, 1, 1),
+	TextSize = 22,
+	Font = Enum.Font.GothamBold
+}, Logo)
+
+New("TextLabel", {
+	Size = UDim2.fromOffset(250, 25),
+	Position = UDim2.fromOffset(62, 10),
+	BackgroundTransparency = 1,
+	Text = "PEPSIHUB",
+	TextColor3 = Color3.fromRGB(245, 245, 255),
+	TextSize = 19,
+	Font = Enum.Font.GothamBold,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Top)
+
+New("TextLabel", {
+	Size = UDim2.fromOffset(300, 20),
+	Position = UDim2.fromOffset(62, 32),
+	BackgroundTransparency = 1,
+	Text = "Universal Utility Hub",
+	TextColor3 = Color3.fromRGB(125, 130, 145),
+	TextSize = 12,
+	Font = Enum.Font.Gotham,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Top)
+
+local Minimize = New("TextButton", {
+	Size = UDim2.fromOffset(40, 40),
+	Position = UDim2.new(1, -90, 0, 11),
+	BackgroundColor3 = Color3.fromRGB(28, 30, 39),
+	BorderSizePixel = 0,
+	Text = "−",
+	TextColor3 = Color3.fromRGB(220, 220, 230),
+	TextSize = 22,
+	Font = Enum.Font.GothamBold
+}, Top)
+
+Corner(Minimize, 10)
+
+local Close = New("TextButton", {
+	Size = UDim2.fromOffset(40, 40),
+	Position = UDim2.new(1, -45, 0, 11),
+	BackgroundColor3 = Color3.fromRGB(45, 29, 35),
+	BorderSizePixel = 0,
+	Text = "×",
+	TextColor3 = Color3.fromRGB(255, 120, 130),
+	TextSize = 22,
+	Font = Enum.Font.GothamBold
+}, Top)
+
+Corner(Close, 10)
+
+local OpenButton = New("TextButton", {
+	Size = UDim2.fromOffset(52, 52),
+	Position = UDim2.fromOffset(15, 150),
+	BackgroundColor3 = Color3.fromRGB(25, 27, 36),
+	BorderSizePixel = 0,
+	Text = "P",
+	TextColor3 = Color3.fromRGB(100, 160, 255),
+	TextSize = 22,
+	Font = Enum.Font.GothamBold,
+	Visible = false
+}, GUI)
+
+Corner(OpenButton, 14)
+Stroke(OpenButton, 0.2)
+
+--==================================================
+-- SIDEBAR
+--==================================================
+
+local Sidebar = New("Frame", {
+	Size = UDim2.new(0, 155, 1, -62),
+	Position = UDim2.fromOffset(0, 62),
+	BackgroundColor3 = Color3.fromRGB(15, 16, 22),
+	BorderSizePixel = 0
+}, Main)
+
+New("TextLabel", {
+	Size = UDim2.new(1, -25, 0, 25),
+	Position = UDim2.fromOffset(15, 15),
+	BackgroundTransparency = 1,
+	Text = "MENU",
+	TextColor3 = Color3.fromRGB(100, 105, 120),
+	TextSize = 11,
+	Font = Enum.Font.GothamBold,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Sidebar)
+
+local Content = New("Frame", {
+	Size = UDim2.new(1, -155, 1, -62),
+	Position = UDim2.fromOffset(155, 62),
+	BackgroundColor3 = Color3.fromRGB(12, 13, 18),
+	BorderSizePixel = 0
+}, Main)
+
+--==================================================
+-- PAGES
+--==================================================
+
+local Pages = {}
+
+local function CreatePage(name)
+	local page = New("ScrollingFrame", {
+		Name = name,
+		Size = UDim2.new(1, -25, 1, -25),
+		Position = UDim2.fromOffset(12, 12),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		ScrollBarImageColor3 = Color3.fromRGB(70, 130, 255),
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		Visible = false
+	}, Content)
+
+	New("UIListLayout", {
+		Padding = UDim.new(0, 10),
+		SortOrder = Enum.SortOrder.LayoutOrder
+	}, page)
+
+	New("UIPadding", {
+		PaddingBottom = UDim.new(0, 15)
+	}, page)
+
+	Pages[name] = page
+	return page
+end
+
+local Home = CreatePage("Home")
+local PlayerPage = CreatePage("Player")
+local Visual = CreatePage("Visual")
+local Settings = CreatePage("Settings")
+
+local Tabs = {}
+
+local function CreateTab(name, icon, order)
+	local button = New("TextButton", {
+		Size = UDim2.new(1, -20, 0, 43),
+		Position = UDim2.fromOffset(
+			10,
+			45 + ((order - 1) * 51)
+		),
+		BackgroundColor3 = Color3.fromRGB(20, 21, 28),
+		BorderSizePixel = 0,
+		Text = "",
+		AutoButtonColor = false
+	}, Sidebar)
+
+	Corner(button, 10)
+
+	local indicator = New("Frame", {
+		Size = UDim2.fromOffset(3, 24),
+		Position = UDim2.fromOffset(0, 9),
+		BackgroundColor3 = Color3.fromRGB(75, 140, 255),
+		BorderSizePixel = 0,
+		Visible = false
+	}, button)
+
+	Corner(indicator, 3)
+
+	New("TextLabel", {
+		Size = UDim2.fromOffset(30, 43),
+		Position = UDim2.fromOffset(8, 0),
+		BackgroundTransparency = 1,
+		Text = icon,
+		TextColor3 = Color3.fromRGB(150, 155, 170),
+		TextSize = 16,
+		Font = Enum.Font.GothamBold
+	}, button)
+
+	local label = New("TextLabel", {
+		Size = UDim2.new(1, -45, 1, 0),
+		Position = UDim2.fromOffset(40, 0),
+		BackgroundTransparency = 1,
+		Text = name,
+		TextColor3 = Color3.fromRGB(150, 155, 170),
+		TextSize = 13,
+		Font = Enum.Font.GothamSemibold,
+		TextXAlignment = Enum.TextXAlignment.Left
+	}, button)
+
+	Tabs[name] = {
+		Button = button,
+		Indicator = indicator,
+		Label = label
+	}
+
+	return button
+end
+
+local function ShowPage(name)
+	for pageName, page in pairs(Pages) do
+		page.Visible = pageName == name
+	end
+
+	for tabName, data in pairs(Tabs) do
+		local selected = tabName == name
+
+		data.Indicator.Visible = selected
+
+		Tween(
+			data.Button,
+			{
+				BackgroundColor3 = selected
+					and Color3.fromRGB(30, 42, 67)
+					or Color3.fromRGB(20, 21, 28)
+			},
+			0.15
+		)
+
+		Tween(
+			data.Label,
+			{
+				TextColor3 = selected
+					and Color3.fromRGB(230, 235, 255)
+					or Color3.fromRGB(150, 155, 170)
+			},
+			0.15
+		)
+	end
+end
+
+local HomeTab = CreateTab("Home", "⌂", 1)
+local PlayerTab = CreateTab("Player", "●", 2)
+local VisualTab = CreateTab("Visual", "◉", 3)
+local SettingsTab = CreateTab("Settings", "⚙", 4)
+
+HomeTab.MouseButton1Click:Connect(function()
+	ShowPage("Home")
+end)
+
+PlayerTab.MouseButton1Click:Connect(function()
+	ShowPage("Player")
+end)
+
+VisualTab.MouseButton1Click:Connect(function()
+	ShowPage("Visual")
+end)
+
+SettingsTab.MouseButton1Click:Connect(function()
+	ShowPage("Settings")
+end)
+
+--==================================================
+-- UI COMPONENTS
+--==================================================
+
+local function Section(parent, title, subtitle)
+	local card = New("Frame", {
+		Size = UDim2.new(1, -5, 0, subtitle and 65 or 45),
+		BackgroundColor3 = Color3.fromRGB(18, 19, 26),
+		BorderSizePixel = 0
+	}, parent)
+
+	Corner(card, 12)
+	Stroke(card, 0.45)
+
+	New("TextLabel", {
+		Size = UDim2.new(1, -20, 0, 24),
+		Position = UDim2.fromOffset(12, 7),
+		BackgroundTransparency = 1,
+		Text = title,
+		TextColor3 = Color3.fromRGB(235, 237, 245),
+		TextSize = 14,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left
+	}, card)
+
+	if subtitle then
+		New("TextLabel", {
+			Size = UDim2.new(1, -20, 0, 20),
+			Position = UDim2.fromOffset(12, 32),
+			BackgroundTransparency = 1,
+			Text = subtitle,
+			TextColor3 = Color3.fromRGB(110, 115, 130),
+			TextSize = 11,
+			Font = Enum.Font.Gotham,
+			TextXAlignment = Enum.TextXAlignment.Left
+		}, card)
+	end
+
+	return card
+end
+
+local function Toggle(parent, title, description, callback)
+	local card = New("Frame", {
+		Size = UDim2.new(1, -5, 0, 62),
+		BackgroundColor3 = Color3.fromRGB(18, 19, 26),
+		BorderSizePixel = 0
+	}, parent)
+
+	Corner(card, 12)
+	Stroke(card, 0.45)
+
+	New("TextLabel", {
+		Size = UDim2.new(1, -85, 0, 22),
+		Position = UDim2.fromOffset(13, 8),
+		BackgroundTransparency = 1,
+		Text = title,
+		TextColor3 = Color3.fromRGB(235, 237, 245),
+		TextSize = 13,
+		Font = Enum.Font.GothamSemibold,
+		TextXAlignment = Enum.TextXAlignment.Left
+	}, card)
+
+	New("TextLabel", {
+		Size = UDim2.new(1, -85, 0, 20),
+		Position = UDim2.fromOffset(13, 31),
+		BackgroundTransparency = 1,
+		Text = description or "",
+		TextColor3 = Color3.fromRGB(105, 110, 125),
+		TextSize = 10,
+		Font = Enum.Font.Gotham,
+		TextXAlignment = Enum.TextXAlignment.Left
+	}, card)
+
+	local switch = New("TextButton", {
+		Size = UDim2.fromOffset(48, 25),
+		Position = UDim2.new(1, -62, 0.5, -12),
+		BackgroundColor3 = Color3.fromRGB(40, 42, 52),
+		BorderSizePixel = 0,
+		Text = ""
+	}, card)
+
+	Corner(switch, 13)
+
+	local knob = New("Frame", {
+		Size = UDim2.fromOffset(19, 19),
+		Position = UDim2.fromOffset(3, 3),
+		BackgroundColor3 = Color3.fromRGB(180, 182, 190),
+		BorderSizePixel = 0
+	}, switch)
+
+	Corner(knob, 10)
+
+	local enabled = false
+
+	switch.MouseButton1Click:Connect(function()
+		enabled = not enabled
+
+		Tween(
+			switch,
+			{
+				BackgroundColor3 = enabled
+					and Color3.fromRGB(70, 130, 255)
+					or Color3.fromRGB(40, 42, 52)
+			},
+			0.18
+		)
+
+		Tween(
+			knob,
+			{
+				Position = enabled
+					and UDim2.new(1, -22, 0, 3)
+					or UDim2.fromOffset(3, 3)
+			},
+			0.18
+		)
+
+		callback(enabled)
+	end)
+
+	return card
+end
+
+local function NumberInput(parent, title, value, callback)
+	local card = New("Frame", {
+		Size = UDim2.new(1, -5, 0, 60),
+		BackgroundColor3 = Color3.fromRGB(18, 19, 26),
+		BorderSizePixel = 0
+	}, parent)
+
+	Corner(card, 12)
+	Stroke(card, 0.45)
+
+	New("TextLabel", {
+		Size = UDim2.new(1, -120, 1, 0),
+		Position = UDim2.fromOffset(13, 0),
+		BackgroundTransparency = 1,
+		Text = title,
+		TextColor3 = Color3.fromRGB(230, 232, 242),
+		TextSize = 13,
+		Font = Enum.Font.GothamSemibold,
+		TextXAlignment = Enum.TextXAlignment.Left
+	}, card)
+
+	local box = New("TextBox", {
+		Size = UDim2.fromOffset(80, 34),
+		Position = UDim2.new(1, -93, 0.5, -17),
+		BackgroundColor3 = Color3.fromRGB(28, 30, 40),
+		BorderSizePixel = 0,
+		Text = tostring(value),
+		TextColor3 = Color3.fromRGB(220, 225, 240),
+		TextSize = 12,
+		Font = Enum.Font.GothamSemibold,
+		ClearTextOnFocus = false
+	}, card)
+
+	Corner(box, 8)
+
+	box.FocusLost:Connect(function()
+		local number = tonumber(box.Text)
+
+		if number then
+			callback(number)
+		else
+			box.Text = tostring(value)
+		end
+	end)
+
+	return card
+end
+
+--==================================================
+-- HOME
+--==================================================
+
+Section(
+	Home,
+	"Welcome to Pepsihub",
+	"Universal Utility Hub • Your own Roblox game"
+)
+
+Section(
+	Home,
+	"Automation",
+	"NPC and quest testing"
+)
+
+Toggle(
+	Home,
+	"Auto Quest",
+	"Automatically accepts a matching quest",
+	function(value)
+		AutoQuest = value
+	end
+)
+
+Toggle(
+	Home,
+	"Auto Farm",
+	"Moves toward the selected NPC",
+	function(value)
+		AutoFarm = value
+	end
+)
+
+Toggle(
+	Home,
+	"Damage Aura",
+	"Damages nearby NPCs only",
+	function(value)
+		DamageAura = value
+	end
+)
+
+--==================================================
+-- TARGET SELECTOR
+--==================================================
+
+local TargetCard = New("Frame", {
+	Size = UDim2.new(1, -5, 0, 62),
+	BackgroundColor3 = Color3.fromRGB(18, 19, 26),
+	BorderSizePixel = 0
+}, Home)
+
+Corner(TargetCard, 12)
+Stroke(TargetCard, 0.45)
+
+New("TextLabel", {
+	Size = UDim2.new(1, -140, 0, 22),
+	Position = UDim2.fromOffset(13, 8),
+	BackgroundTransparency = 1,
+	Text = "Target",
+	TextColor3 = Color3.fromRGB(235, 237, 245),
+	TextSize = 13,
+	Font = Enum.Font.GothamSemibold,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, TargetCard)
+
+New("TextLabel", {
+	Size = UDim2.new(1, -140, 0, 20),
+	Position = UDim2.fromOffset(13, 31),
+	BackgroundTransparency = 1,
+	Text = "Choose farming target",
+	TextColor3 = Color3.fromRGB(105, 110, 125),
+	TextSize = 10,
+	Font = Enum.Font.Gotham
+}, TargetCard)
+
+local TargetButton = New("TextButton", {
+	Size = UDim2.fromOffset(115, 34),
+	Position = UDim2.new(1, -128, 0.5, -17),
+	BackgroundColor3 = Color3.fromRGB(30, 42, 67),
+	BorderSizePixel = 0,
+	Text = SelectedTarget,
+	TextColor3 = Color3.fromRGB(185, 205, 255),
+	TextSize = 11,
+	Font = Enum.Font.GothamSemibold
+}, TargetCard)
+
+Corner(TargetButton, 9)
+
+local TargetList = New("ScrollingFrame", {
+	Size = UDim2.fromOffset(230, 160),
+	Position = UDim2.new(1, -243, 0, 66),
+	BackgroundColor3 = Color3.fromRGB(18, 19, 26),
+	BorderSizePixel = 0,
+	ScrollBarThickness = 3,
+	CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	Visible = false,
+	ZIndex = 20
+}, TargetCard)
+
+Corner(TargetList, 10)
+Stroke(TargetList, 0.2)
+
+New("UIListLayout", {
+	Padding = UDim.new(0, 3)
+}, TargetList)
+
+for _, target in ipairs(Targets) do
+	local button = New("TextButton", {
+		Size = UDim2.new(1, -8, 0, 28),
+		BackgroundColor3 = Color3.fromRGB(27, 29, 38),
+		BorderSizePixel = 0,
+		Text = target,
+		TextColor3 = Color3.fromRGB(215, 218, 230),
+		TextSize = 10,
+		Font = Enum.Font.Gotham,
+		ZIndex = 21
+	}, TargetList)
+
+	Corner(button, 7)
+
+	button.MouseButton1Click:Connect(function()
+		SelectedTarget = target
+		TargetButton.Text = target
+		TargetList.Visible = false
+	end)
+end
+
+TargetButton.MouseButton1Click:Connect(function()
+	TargetList.Visible = not TargetList.Visible
+end)
+
+--==================================================
+-- PLAYER
+--==================================================
+
+Section(
+	PlayerPage,
+	"Player",
+	"Movement configuration"
+)
+
+NumberInput(
+	PlayerPage,
+	"WalkSpeed",
+	WalkSpeed,
+	function(value)
+		WalkSpeed = math.clamp(value, 0, 200)
+	end
+)
+
+NumberInput(
+	PlayerPage,
+	"JumpPower",
+	JumpPower,
+	function(value)
+		JumpPower = math.clamp(value, 0, 200)
+	end
+)
+
+Toggle(
+	PlayerPage,
+	"Infinite Jump",
+	"Jump continuously",
+	function(value)
+		InfiniteJump = value
+	end
+)
+
+Toggle(
+	PlayerPage,
+	"NoClip",
+	"Disable character collision",
+	function(value)
+		NoClip = value
+	end
+)
+
+--==================================================
+-- VISUAL
+--==================================================
+
+Section(
+	Visual,
+	"Visual",
+	"Player visualization"
+)
+
+local ESPObjects = {}
+
+local function ClearESP()
+	for player, highlight in pairs(ESPObjects) do
+		if highlight then
+			highlight:Destroy()
+		end
+
+		ESPObjects[player] = nil
+	end
+end
+
+local function AddESP(player)
+	if player == Player then
+		return
+	end
+
+	local character = player.Character
+
+	if not character then
+		return
+	end
+
+	if ESPObjects[player] then
+		return
+	end
+
+	local highlight = Instance.new("Highlight")
+
+	highlight.Name = "PepsihubESP"
+	highlight.Adornee = character
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(80, 145, 255)
+	highlight.OutlineColor = Color3.fromRGB(120, 180, 255)
+	highlight.FillTransparency = 0.7
+	highlight.OutlineTransparency = 0
+
+	highlight.Parent = character
+	ESPObjects[player] = highlight
+end
+
+local function UpdateESP()
+	if not ESPEnabled then
+		ClearESP()
+		return
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		AddESP(player)
+	end
+end
+
+Toggle(
+	Visual,
+	"ESP Player",
+	"Highlight other players",
+	function(value)
+		ESPEnabled = value
+		UpdateESP()
+	end
+)
+
+--==================================================
+-- SETTINGS
+--==================================================
+
+Section(
+	Settings,
+	"Settings",
+	"Pepsihub configuration"
+)
+
+Section(
+	Settings,
+	"Information",
+	"Built for Roblox Studio"
+)
+
+New("TextLabel", {
+	Size = UDim2.new(1, -30, 0, 70),
+	BackgroundTransparency = 1,
+	Text = "PEPSIHUB\nNPC automation • Player utilities • ESP\nMobile + PC supported",
+	TextColor3 = Color3.fromRGB(170, 175, 190),
+	TextSize = 12,
+	Font = Enum.Font.Gotham,
+	TextWrapped = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Center
+}, Settings)
+
+--==================================================
+-- NPC SYSTEM
+--==================================================
+
+local function IsNPC(model)
+	if not model:IsA("Model") then
+		return false
+	end
+
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local root = model:FindFirstChild("HumanoidRootPart")
+
+	return humanoid
+		and root
+		and humanoid.Health > 0
+end
+
+local function FindTargetNPC()
+	local root = GetRoot()
+
+	if not root then
+		return nil
+	end
+
+	local nearest
+	local nearestDistance = math.huge
+
+	for _, model in ipairs(workspace:GetDescendants()) do
+		if model:IsA("Model")
+			and model.Name == SelectedTarget
+			and IsNPC(model) then
+
+			local npcRoot = model:FindFirstChild("HumanoidRootPart")
+
+			if npcRoot then
+				local distance =
+					(root.Position - npcRoot.Position).Magnitude
+
+				if distance < nearestDistance then
+					nearestDistance = distance
+					nearest = model
+				end
+			end
+		end
+	end
+
+	return nearest
+end
+
+--==================================================
+-- AUTO QUEST
+--==================================================
+
+local function FindQuest()
+	local questFolder =
+		workspace:FindFirstChild("Quests")
+		or game:GetService("ReplicatedStorage"):FindFirstChild("Quests")
+
+	if not questFolder then
+		return nil
+	end
+
+	for _, quest in ipairs(questFolder:GetChildren()) do
+		if quest.Name == SelectedTarget
+			or quest:GetAttribute("Target") == SelectedTarget then
+
+			return quest
+		end
+	end
+
+	return nil
+end
+
+local function StartQuest()
+	local quest = FindQuest()
+
+	if not quest then
+		return
+	end
+
+	-- Nếu game của bạn có BindableEvent StartQuest,
+	-- script sẽ gọi nó.
+	local event = quest:FindFirstChild("StartQuest")
+
+	if event and event:IsA("BindableEvent") then
+		event:Fire()
+	end
+end
+
+--==================================================
+-- AUTO FARM
+--==================================================
+
+local func
