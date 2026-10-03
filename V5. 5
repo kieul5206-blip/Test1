@@ -1,0 +1,818 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CollectionService = game:GetService("CollectionService")
+local CoreGui = game:GetService("CoreGui")
+local Player = Players.LocalPlayer
+pcall(function() CoreGui:FindFirstChild("PepsiHub"):Destroy() end)
+pcall(function() CoreGui:FindFirstChild("PepsiHubTP"):Destroy() end)
+local EggData={
+["White Egg"]={Rarity="Common",Value=1},["Brown Egg"]={Rarity="Common",Value=5},["Cracked Egg"]={Rarity="Common",Value=30},
+["Easter Egg"]={Rarity="Event / Common",Value=50},["Stone Egg"]={Rarity="Uncommon",Value=100},["Leaf Egg"]={Rarity="Uncommon",Value=200},
+["Golden Egg"]={Rarity="Legendary",Value=30000},["Diamond Egg"]={Rarity="Legendary",Value=90000},["Crystal Egg"]={Rarity="Legendary",Value=150000},
+["Skull Egg"]={Rarity="Legendary",Value=250000},["Dominus Egg"]={Rarity="Mythic",Value=700000},["Flaming Egg"]={Rarity="Mythic",Value=1000000},
+["Sinister Egg"]={Rarity="Mythic",Value=3000000},["Soul Egg"]={Rarity="Mythic",Value=7000000},["Aurora Egg"]={Rarity="Eternal",Value=300000000},
+["Galaxy Egg"]={Rarity="Eternal",Value=1500000000},["Blackhole Egg"]={Rarity="Ethereal",Value=100000000000},
+["Solaris Egg"]={Rarity="Ethereal",Value=300000000000},["Cherub Egg"]={Rarity="Ethereal / Divine",Value=1000000000000},
+["Volcanic Egg"]={Rarity="Ethereal",Value=2500000000000}}
+local GardenWords={"garden","gardens","plot","plots","playerplot","playergarden","eggplot","gardenplot","privategarden","privateplot","farmplot","petplot"}
+local GardenTags={"Garden","garden","Plot","plot","PlayerGarden","playergarden","PlayerPlot","playerplot","GardenPlot","gardenplot","EggPlot","eggplot","FarmPlot","farmplot","PetPlot","petplot"}
+local SelectedEgg=nil
+local ScanBusy=false
+local EggButtons={}
+local SavedPosition=nil
+local FlyingToHome=false
+local TPHomeSpeed=450
+local WalkSpeedValue=16
+local WalkSpeedEnabled=false
+local InfiniteJump=false
+local NoClip=false
+local ESPEnabled=false
+local PlayerNamesEnabled=false
+local function NormalizeName(Name) return string.lower((Name or ""):gsub("[%s_%-%p]","")) end
+local function FormatValue(Value)
+if Value>=1000000000000 then return string.format("%.2fT",Value/1000000000000):gsub("%.00","")
+elseif Value>=1000000000 then return string.format("%.2fB",Value/1000000000):gsub("%.00","")
+elseif Value>=1000000 then return string.format("%.2fM",Value/1000000):gsub("%.00","")
+elseif Value>=1000 then return string.format("%.2fK",Value/1000):gsub("%.00","") end
+return tostring(Value)
+end
+local function GetHumanoid()
+local Character=Player.Character
+return Character and Character:FindFirstChildOfClass("Humanoid")
+end
+local function GetRoot()
+local Character=Player.Character
+return Character and Character:FindFirstChild("HumanoidRootPart")
+end
+local function GetEggData(Object)
+if not Object then return nil end
+local Current=Object
+while Current and Current~=workspace do
+local Normalized=NormalizeName(Current.Name)
+for Name,Data in pairs(EggData) do
+if NormalizeName(Name)==Normalized then return Data end
+end
+Current=Current.Parent
+end
+return nil
+end
+local function GetEggRoot(Object)
+if not Object then return nil end
+local Current=Object
+while Current and Current~=workspace do
+if GetEggData(Current) then return Current end
+Current=Current.Parent
+end
+return nil
+end
+local function IsInsideInventory(Object)
+local Current=Object
+while Current and Current~=workspace do
+local Name=NormalizeName(Current.Name)
+if Current:IsA("Backpack") or Name=="backpack" or Name=="inventory" or Name=="storage" or Name=="itemstorage" then return true end
+Current=Current.Parent
+end
+return false
+end
+local function HasGardenWord(Name)
+local Lower=string.lower(Name or "")
+for _,Word in ipairs(GardenWords) do
+if string.find(Lower,Word,1,true) then return true end
+end
+return false
+end
+local function IsGardenObject(Object)
+if not Object then return false end
+for _,Tag in ipairs(GardenTags) do
+if CollectionService:HasTag(Object,Tag) then return true end
+end
+local Attributes={"IsGarden","isGarden","Garden","garden","IsPlot","isPlot","Plot","plot","IsPlayerPlot","isPlayerPlot","IsGardenPlot","isGardenPlot"}
+for _,Attribute in ipairs(Attributes) do
+if Object:GetAttribute(Attribute)==true then return true end
+end
+return HasGardenWord(Object.Name)
+end
+local function IsInsidePlayerGarden(Object)
+local Current=Object
+while Current and Current~=workspace do
+if IsGardenObject(Current) then return true end
+Current=Current.Parent
+end
+return false
+end
+local function IsUnavailable(Egg)
+local Attributes={"Taken","taken","Claimed","claimed","Collected","collected","Picked","picked","Sold","sold","Used","used","Disabled","disabled"}
+for _,Attribute in ipairs(Attributes) do
+if Egg:GetAttribute(Attribute)==true then return true end
+end
+if Egg:GetAttribute("Available")==false then return true end
+return false
+end
+local function IsValidMapEgg(Egg)
+if not Egg or not Egg:IsDescendantOf(workspace) then return false end
+if Player.Character and Egg:IsDescendantOf(Player.Character) then return false end
+if IsInsideInventory(Egg) then return false end
+if IsInsidePlayerGarden(Egg) then return false end
+if IsUnavailable(Egg) then return false end
+return true
+end
+local function GetEggPosition(Egg)
+if not Egg then return nil end
+if Egg:IsA("BasePart") then return Egg.Position end
+if Egg:IsA("Model") then
+if Egg.PrimaryPart then return Egg.PrimaryPart.Position end
+local Part=Egg:FindFirstChildWhichIsA("BasePart",true)
+if Part then return Part.Position end
+end
+local Part=Egg:FindFirstChildWhichIsA("BasePart",true)
+return Part and Part.Position
+end;local ScreenGui=Instance.new("ScreenGui")
+ScreenGui.Name="PepsiHub"
+ScreenGui.ResetOnSpawn=false
+ScreenGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent=CoreGui
+local Main=Instance.new("Frame")
+Main.Size=UDim2.new(0,680,0,440)
+Main.Position=UDim2.new(0.5,-340,0.5,-220)
+Main.BackgroundColor3=Color3.fromRGB(10,11,15)
+Main.BorderSizePixel=0
+Main.Parent=ScreenGui
+local MainCorner=Instance.new("UICorner")
+MainCorner.CornerRadius=UDim.new(0,10)
+MainCorner.Parent=Main
+local Stroke=Instance.new("UIStroke")
+Stroke.Color=Color3.fromRGB(42,45,55)
+Stroke.Thickness=1
+Stroke.Transparency=0.25
+Stroke.Parent=Main
+local Header=Instance.new("Frame")
+Header.Size=UDim2.new(1,0,0,54)
+Header.BackgroundColor3=Color3.fromRGB(14,15,20)
+Header.BorderSizePixel=0
+Header.Parent=Main
+local HeaderLine=Instance.new("Frame")
+HeaderLine.Size=UDim2.new(1,0,0,1)
+HeaderLine.Position=UDim2.new(0,0,1,-1)
+HeaderLine.BackgroundColor3=Color3.fromRGB(38,41,50)
+HeaderLine.BorderSizePixel=0
+HeaderLine.Parent=Header
+local Logo=Instance.new("TextLabel")
+Logo.Size=UDim2.new(0,34,0,34)
+Logo.Position=UDim2.new(0,12,0,10)
+Logo.BackgroundColor3=Color3.fromRGB(31,43,68)
+Logo.Text="P"
+Logo.TextColor3=Color3.fromRGB(85,145,255)
+Logo.TextSize=19
+Logo.Font=Enum.Font.GothamBold
+Logo.Parent=Header
+local LogoCorner=Instance.new("UICorner")
+LogoCorner.CornerRadius=UDim.new(0,8)
+LogoCorner.Parent=Logo
+local Title=Instance.new("TextLabel")
+Title.Size=UDim2.new(0,220,0,22)
+Title.Position=UDim2.new(0,56,0,8)
+Title.BackgroundTransparency=1
+Title.Text="PEPSIHUB"
+Title.TextColor3=Color3.fromRGB(245,245,248)
+Title.TextSize=15
+Title.Font=Enum.Font.GothamBold
+Title.TextXAlignment=Enum.TextXAlignment.Left
+Title.Parent=Header
+local Version=Instance.new("TextLabel")
+Version.Size=UDim2.new(0,220,0,18)
+Version.Position=UDim2.new(0,56,0,29)
+Version.BackgroundTransparency=1
+Version.Text="Universal Utility"
+Version.TextColor3=Color3.fromRGB(105,109,120)
+Version.TextSize=10
+Version.Font=Enum.Font.Gotham
+Version.TextXAlignment=Enum.TextXAlignment.Left
+Version.Parent=Header
+local Minimize=Instance.new("TextButton")
+Minimize.Size=UDim2.new(0,35,0,35)
+Minimize.Position=UDim2.new(1,-82,0,9)
+Minimize.BackgroundTransparency=1
+Minimize.Text="−"
+Minimize.TextColor3=Color3.fromRGB(180,183,191)
+Minimize.TextSize=20
+Minimize.Font=Enum.Font.GothamBold
+Minimize.Parent=Header
+local Close=Instance.new("TextButton")
+Close.Size=UDim2.new(0,35,0,35)
+Close.Position=UDim2.new(1,-44,0,9)
+Close.BackgroundTransparency=1
+Close.Text="×"
+Close.TextColor3=Color3.fromRGB(180,183,191)
+Close.TextSize=21
+Close.Font=Enum.Font.GothamBold
+Close.Parent=Header
+local Sidebar=Instance.new("Frame")
+Sidebar.Size=UDim2.new(0,150,1,-54)
+Sidebar.Position=UDim2.new(0,0,0,54)
+Sidebar.BackgroundColor3=Color3.fromRGB(13,14,19)
+Sidebar.BorderSizePixel=0
+Sidebar.Parent=Main
+local SideLine=Instance.new("Frame")
+SideLine.Size=UDim2.new(0,1,1,0)
+SideLine.Position=UDim2.new(1,-1,0,0)
+SideLine.BackgroundColor3=Color3.fromRGB(34,37,46)
+SideLine.BorderSizePixel=0
+SideLine.Parent=Sidebar
+local Content=Instance.new("Frame")
+Content.Size=UDim2.new(1,-150,1,-54)
+Content.Position=UDim2.new(0,150,0,54)
+Content.BackgroundColor3=Color3.fromRGB(10,11,15)
+Content.BorderSizePixel=0
+Content.Parent=Main
+local Pages={}
+local function CreatePage(Name)
+local Page=Instance.new("ScrollingFrame")
+Page.Name=Name
+Page.Size=UDim2.new(1,-24,1,-24)
+Page.Position=UDim2.new(0,12,0,12)
+Page.BackgroundTransparency=1
+Page.BorderSizePixel=0
+Page.ScrollBarThickness=3
+Page.ScrollBarImageColor3=Color3.fromRGB(65,69,82)
+Page.CanvasSize=UDim2.new(0,0,0,0)
+Page.Visible=false
+Page.Parent=Content
+local Layout=Instance.new("UIListLayout")
+Layout.Padding=UDim.new(0,7)
+Layout.Parent=Page
+Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+Page.CanvasSize=UDim2.new(0,0,0,Layout.AbsoluteContentSize.Y+12)
+end)
+Pages[Name]=Page
+return Page
+end
+local HomePage=CreatePage("Home")
+local PlayerPage=CreatePage("Player")
+local VisualPage=CreatePage("Visual")
+local SettingsPage=CreatePage("Settings")
+local TabButtons={}
+local function CreateTab(Name,Icon,PageName,Y)
+local Button=Instance.new("TextButton")
+Button.Size=UDim2.new(1,-18,0,40)
+Button.Position=UDim2.new(0,9,0,Y)
+Button.BackgroundColor3=Color3.fromRGB(13,14,19)
+Button.Text="   "..Icon.."   "..Name
+Button.TextColor3=Color3.fromRGB(135,139,149)
+Button.TextSize=11
+Button.Font=Enum.Font.GothamMedium
+Button.TextXAlignment=Enum.TextXAlignment.Left
+Button.AutoButtonColor=false
+Button.Parent=Sidebar
+local Corner=Instance.new("UICorner")
+Corner.CornerRadius=UDim.new(0,7)
+Corner.Parent=Button
+TabButtons[PageName]=Button
+Button.MouseButton1Click:Connect(function()
+for Name2,Page in pairs(Pages) do Page.Visible=Name2==PageName end
+for _,Tab in pairs(TabButtons) do
+Tab.BackgroundColor3=Color3.fromRGB(13,14,19)
+Tab.TextColor3=Color3.fromRGB(135,139,149)
+end
+Button.BackgroundColor3=Color3.fromRGB(28,39,61)
+Button.TextColor3=Color3.fromRGB(90,150,255)
+end)
+return Button
+end
+CreateTab("Home","⌂","Home",12)
+CreateTab("Player","●","Player",59)
+CreateTab("Visual","◉","Visual",106)
+CreateTab("Settings","⚙","Settings",153)
+Pages.Home.Visible=true
+TabButtons.Home.BackgroundColor3=Color3.fromRGB(28,39,61)
+TabButtons.Home.TextColor3=Color3.fromRGB(90,150,255)
+local function CreateSection(Page,Text)
+local Holder=Instance.new("Frame")
+Holder.Size=UDim2.new(1,0,0,31)
+Holder.BackgroundTransparency=1
+Holder.Parent=Page
+local Label=Instance.new("TextLabel")
+Label.Size=UDim2.new(1,-8,1,0)
+Label.BackgroundTransparency=1
+Label.Text=Text
+Label.TextColor3=Color3.fromRGB(91,148,255)
+Label.TextSize=10
+Label.Font=Enum.Font.GothamBold
+Label.TextXAlignment=Enum.TextXAlignment.Left
+Label.Parent=Holder
+return Holder
+end
+local function CreateButton(Page,Text,Callback)
+local Button=Instance.new("TextButton")
+Button.Size=UDim2.new(1,0,0,39)
+Button.BackgroundColor3=Color3.fromRGB(17,19,25)
+Button.Text=Text
+Button.TextColor3=Color3.fromRGB(205,208,216)
+Button.TextSize=11
+Button.Font=Enum.Font.GothamMedium
+Button.TextXAlignment=Enum.TextXAlignment.Left
+Button.AutoButtonColor=false
+Button.Parent=Page
+local Padding=Instance.new("UIPadding")
+Padding.PaddingLeft=UDim.new(0,13)
+Padding.Parent=Button
+local Corner=Instance.new("UICorner")
+Corner.CornerRadius=UDim.new(0,7)
+Corner.Parent=Button
+Button.MouseEnter:Connect(function() Button.BackgroundColor3=Color3.fromRGB(23,26,34) end)
+Button.MouseLeave:Connect(function() Button.BackgroundColor3=Color3.fromRGB(17,19,25) end)
+Button.MouseButton1Click:Connect(Callback)
+return Button
+end
+local function CreateToggle(Page,Text,Callback)
+local Holder=Instance.new("Frame")
+Holder.Size=UDim2.new(1,0,0,39)
+Holder.BackgroundColor3=Color3.fromRGB(17,19,25)
+Holder.BorderSizePixel=0
+Holder.Parent=Page
+local Corner=Instance.new("UICorner")
+Corner.CornerRadius=UDim.new(0,7)
+Corner.Parent=Holder
+local Label=Instance.new("TextLabel")
+Label.Size=UDim2.new(1,-75,1,0)
+Label.Position=UDim2.new(0,13,0,0)
+Label.BackgroundTransparency=1
+Label.Text=Text
+Label.TextColor3=Color3.fromRGB(205,208,216)
+Label.TextSize=11
+Label.Font=Enum.Font.GothamMedium
+Label.TextXAlignment=Enum.TextXAlignment.Left
+Label.Parent=Holder
+local Toggle=Instance.new("TextButton")
+Toggle.Size=UDim2.new(0,34,0,18)
+Toggle.Position=UDim2.new(1,-47,0.5,-9)
+Toggle.BackgroundColor3=Color3.fromRGB(43,46,56)
+Toggle.Text=""
+Toggle.AutoButtonColor=false
+Toggle.Parent=Holder
+local ToggleCorner=Instance.new("UICorner")
+ToggleCorner.CornerRadius=UDim.new(1,0)
+ToggleCorner.Parent=Toggle
+local Dot=Instance.new("Frame")
+Dot.Size=UDim2.new(0,14,0,14)
+Dot.Position=UDim2.new(0,2,0.5,-7)
+Dot.BackgroundColor3=Color3.fromRGB(195,198,205)
+Dot.Parent=Toggle
+local DotCorner=Instance.new("UICorner")
+DotCorner.CornerRadius=UDim.new(1,0)
+DotCorner.Parent=Dot
+local State=false
+Toggle.MouseButton1Click:Connect(function()
+State=not State
+Toggle.BackgroundColor3=State and Color3.fromRGB(72,130,235) or Color3.fromRGB(43,46,56)
+Dot.Position=State and UDim2.new(1,-16,0.5,-7) or UDim2.new(0,2,0.5,-7)
+Callback(State)
+end)
+return Holder
+end
+local function MakeDraggable(Object,Handle)
+Handle=Handle or Object
+local Dragging=false
+local Start
+local StartPos
+Handle.InputBegan:Connect(function(Input)
+if Input.UserInputType==Enum.UserInputType.MouseButton1 or Input.UserInputType==Enum.UserInputType.Touch then
+Dragging=true
+Start=Input.Position
+StartPos=Object.Position
+end
+end)
+UserInputService.InputChanged:Connect(function(Input)
+if not Dragging then return end
+if Input.UserInputType==Enum.UserInputType.MouseMovement or Input.UserInputType==Enum.UserInputType.Touch then
+local Delta=Input.Position-Start
+Object.Position=UDim2.new(StartPos.X.Scale,StartPos.X.Offset+Delta.X,StartPos.Y.Scale,StartPos.Y.Offset+Delta.Y)
+end
+end)
+UserInputService.InputEnded:Connect(function(Input)
+if Input.UserInputType==Enum.UserInputType.MouseButton1 or Input.UserInputType==Enum.UserInputType.Touch then Dragging=false end
+end)
+end;MakeDraggable(Main,Header)
+Close.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+local Minimized=false
+local SavedMainSize=Main.Size
+Minimize.MouseButton1Click:Connect(function()
+Minimized=not Minimized
+if Minimized then
+SavedMainSize=Main.Size
+Main.Size=UDim2.new(0,680,0,54)
+Sidebar.Visible=false
+Content.Visible=false
+else
+Main.Size=SavedMainSize
+Sidebar.Visible=true
+Content.Visible=true
+end
+end)
+CreateSection(HomePage,"TELEPORT")
+CreateButton(HomePage,"Lưu vị trí",function()
+local Root=GetRoot()
+if Root then SavedPosition=Root.CFrame FlyingToHome=false end
+end)
+local TPHomeGui=Instance.new("ScreenGui")
+TPHomeGui.Name="PepsiHubTP"
+TPHomeGui.ResetOnSpawn=false
+TPHomeGui.Enabled=true
+TPHomeGui.Parent=CoreGui
+local TPHomeButton=Instance.new("TextButton")
+TPHomeButton.Size=UDim2.new(0,112,0,36)
+TPHomeButton.Position=UDim2.new(1,-130,0.5,-18)
+TPHomeButton.BackgroundColor3=Color3.fromRGB(25,36,58)
+TPHomeButton.Text="TP HOME"
+TPHomeButton.TextColor3=Color3.fromRGB(220,225,235)
+TPHomeButton.TextSize=11
+TPHomeButton.Font=Enum.Font.GothamBold
+TPHomeButton.AutoButtonColor=false
+TPHomeButton.Parent=TPHomeGui
+local TPHomeCorner=Instance.new("UICorner")
+TPHomeCorner.CornerRadius=UDim.new(0,8)
+TPHomeCorner.Parent=TPHomeButton
+MakeDraggable(TPHomeButton)
+TPHomeButton.MouseButton1Click:Connect(function()
+if SavedPosition then FlyingToHome=true end
+end)
+CreateToggle(HomePage,"TP Home",function(State)
+TPHomeGui.Enabled=State
+if not State then FlyingToHome=false end
+end)
+CreateSection(HomePage,"EGG FINDER")
+local EggList=Instance.new("Frame")
+EggList.Size=UDim2.new(1,0,0,0)
+EggList.BackgroundTransparency=1
+EggList.Parent=HomePage
+local EggLayout=Instance.new("UIListLayout")
+EggLayout.Padding=UDim.new(0,5)
+EggLayout.Parent=EggList
+local function ClearEggList()
+for _,Button in ipairs(EggButtons) do
+if Button and Button.Parent then Button:Destroy() end
+end
+table.clear(EggButtons)
+SelectedEgg=nil
+EggList.Size=UDim2.new(1,0,0,0)
+end
+local function RefreshTopEggs()
+if ScanBusy then return end
+ScanBusy=true
+ClearEggList()
+local Found={}
+local Checked={}
+local Objects=workspace:GetDescendants()
+local StartTime=os.clock()
+local MaxTime=8
+local Index=1
+local Total=#Objects
+while Index<=Total do
+local FrameStart=os.clock()
+local EndIndex=math.min(Index+500-1,Total)
+while Index<=EndIndex do
+local Object=Objects[Index]
+if Object then
+local Egg=GetEggRoot(Object)
+if Egg and not Checked[Egg] then
+Checked[Egg]=true
+local Data=GetEggData(Egg)
+if Data and IsValidMapEgg(Egg) then
+table.insert(Found,{Instance=Egg,Name=Egg.Name,Rarity=Data.Rarity,Value=Data.Value})
+end
+end
+end
+Index+=1
+if os.clock()-FrameStart>=0.006 then break end
+end
+if os.clock()-StartTime>=MaxTime then break end
+RunService.Heartbeat:Wait()
+end
+table.sort(Found,function(A,B) return A.Value>B.Value end)
+for I=1,math.min(5,#Found) do
+local Egg=Found[I]
+local Button=Instance.new("TextButton")
+Button.Size=UDim2.new(1,0,0,43)
+Button.BackgroundColor3=Color3.fromRGB(17,19,25)
+Button.Text="#"..I.."  "..Egg.Name.."  •  "..Egg.Rarity.."  •  "..FormatValue(Egg.Value).." Luck"
+Button.TextColor3=Color3.fromRGB(202,205,214)
+Button.TextSize=10
+Button.Font=Enum.Font.GothamMedium
+Button.TextXAlignment=Enum.TextXAlignment.Left
+Button.AutoButtonColor=false
+Button.Parent=EggList
+local Padding=Instance.new("UIPadding")
+Padding.PaddingLeft=UDim.new(0,12)
+Padding.Parent=Button
+local Corner=Instance.new("UICorner")
+Corner.CornerRadius=UDim.new(0,7)
+Corner.Parent=Button
+table.insert(EggButtons,Button)
+Button.MouseButton1Click:Connect(function()
+if not IsValidMapEgg(Egg.Instance) then
+SelectedEgg=nil
+Button.BackgroundColor3=Color3.fromRGB(17,19,25)
+return
+end
+SelectedEgg=Egg.Instance
+for _,Other in ipairs(EggButtons) do Other.BackgroundColor3=Color3.fromRGB(17,19,25) end
+Button.BackgroundColor3=Color3.fromRGB(28,40,63)
+end)
+end
+EggList.Size=UDim2.new(1,0,0,math.min(5,#Found)*48)
+ScanBusy=false
+end
+CreateButton(HomePage,"SCAN TOP 5 EGGS",function() RefreshTopEggs() end)
+CreateButton(HomePage,"TP SELECTED EGG",function()
+if not SelectedEgg then return end
+if not IsValidMapEgg(SelectedEgg) then SelectedEgg=nil return end
+local Position=GetEggPosition(SelectedEgg)
+local Root=GetRoot()
+if Position and Root then Root.CFrame=CFrame.new(Position+Vector3.new(0,4,0)) end
+end)
+CreateSection(PlayerPage,"MOVEMENT")
+local WalkSpeedHolder=Instance.new("Frame")
+WalkSpeedHolder.Size=UDim2.new(1,0,0,50)
+WalkSpeedHolder.BackgroundColor3=Color3.fromRGB(17,19,25)
+WalkSpeedHolder.BorderSizePixel=0
+WalkSpeedHolder.Parent=PlayerPage
+local WalkSpeedCorner=Instance.new("UICorner")
+WalkSpeedCorner.CornerRadius=UDim.new(0,7)
+WalkSpeedCorner.Parent=WalkSpeedHolder
+local WalkSpeedLabel=Instance.new("TextLabel")
+WalkSpeedLabel.Size=UDim2.new(1,-110,1,0)
+WalkSpeedLabel.Position=UDim2.new(0,13,0,0)
+WalkSpeedLabel.BackgroundTransparency=1
+WalkSpeedLabel.Text="WalkSpeed: 16"
+WalkSpeedLabel.TextColor3=Color3.fromRGB(205,208,216)
+WalkSpeedLabel.TextSize=11
+WalkSpeedLabel.Font=Enum.Font.GothamMedium
+WalkSpeedLabel.TextXAlignment=Enum.TextXAlignment.Left
+WalkSpeedLabel.Parent=WalkSpeedHolder
+local MinusSpeed=Instance.new("TextButton")
+MinusSpeed.Size=UDim2.new(0,30,0,28)
+MinusSpeed.Position=UDim2.new(1,-73,0.5,-14)
+MinusSpeed.BackgroundColor3=Color3.fromRGB(29,32,41)
+MinusSpeed.Text="−"
+MinusSpeed.TextColor3=Color3.fromRGB(210,214,223)
+MinusSpeed.TextSize=15
+MinusSpeed.Font=Enum.Font.GothamBold
+MinusSpeed.AutoButtonColor=false
+MinusSpeed.Parent=WalkSpeedHolder
+local MinusCorner=Instance.new("UICorner")
+MinusCorner.CornerRadius=UDim.new(0,6)
+MinusCorner.Parent=MinusSpeed
+local PlusSpeed=Instance.new("TextButton")
+PlusSpeed.Size=UDim2.new(0,30,0,28)
+PlusSpeed.Position=UDim2.new(1,-38,0.5,-14)
+PlusSpeed.BackgroundColor3=Color3.fromRGB(29,32,41)
+PlusSpeed.Text="+"
+PlusSpeed.TextColor3=Color3.fromRGB(210,214,223)
+PlusSpeed.TextSize=15
+PlusSpeed.Font=Enum.Font.GothamBold
+PlusSpeed.AutoButtonColor=false
+PlusSpeed.Parent=WalkSpeedHolder
+local PlusCorner=Instance.new("UICorner")
+PlusCorner.CornerRadius=UDim.new(0,6)
+PlusCorner.Parent=PlusSpeed
+local function UpdateWalkSpeed()
+WalkSpeedLabel.Text="WalkSpeed: "..WalkSpeedValue
+if WalkSpeedEnabled then
+local Humanoid=GetHumanoid()
+if Humanoid then Humanoid.WalkSpeed=WalkSpeedValue end
+end
+end
+MinusSpeed.MouseButton1Click:Connect(function()
+WalkSpeedValue=math.max(16,WalkSpeedValue-4)
+UpdateWalkSpeed()
+end)
+PlusSpeed.MouseButton1Click:Connect(function()
+WalkSpeedValue=math.min(100,WalkSpeedValue+4)
+UpdateWalkSpeed()
+end)
+CreateToggle(PlayerPage,"WalkSpeed",function(State)
+WalkSpeedEnabled=State
+local Humanoid=GetHumanoid()
+if Humanoid then Humanoid.WalkSpeed=State and WalkSpeedValue or 16 end
+end)
+CreateToggle(PlayerPage,"Infinite Jump",function(State) InfiniteJump=State end)
+CreateToggle(PlayerPage,"NoClip",function(State) NoClip=State end)
+CreateSection(PlayerPage,"POSITION")
+CreateButton(PlayerPage,"SAVE POSITION",function()
+local Root=GetRoot()
+if Root then SavedPosition=Root.CFrame end
+end)
+CreateButton(PlayerPage,"TP SAVED POSITION",function()
+local Root=GetRoot()
+if Root and SavedPosition then Root.CFrame=SavedPosition end
+end)
+CreateSection(VisualPage,"PLAYER VISUALS")
+local function RemoveESP()
+for _,Object in ipairs(CoreGui:GetChildren()) do
+if Object.Name=="PepsiHubESP" then Object:Destroy() end
+end
+end;local function CreatePlayerESP(Target)
+if Target==Player then return end
+local Character=Target.Character
+if not Character then return end
+local Root=Character:FindFirstChild("HumanoidRootPart")
+if not Root then return end
+local Highlight=Character:FindFirstChild("PepsiHubESP")
+if Highlight then return end
+Highlight=Instance.new("Highlight")
+Highlight.Name="PepsiHubESP"
+Highlight.Adornee=Character
+Highlight.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+Highlight.FillTransparency=0.75
+Highlight.OutlineTransparency=0
+Highlight.FillColor=Color3.fromRGB(70,130,255)
+Highlight.OutlineColor=Color3.fromRGB(100,160,255)
+Highlight.Parent=Character
+end
+local function UpdateESP()
+if not ESPEnabled then return end
+for _,Target in ipairs(Players:GetPlayers()) do CreatePlayerESP(Target) end
+end
+local function RemovePlayerNames()
+for _,Target in ipairs(Players:GetPlayers()) do
+if Target.Character then
+local Existing=Target.Character:FindFirstChild("PepsiHubName")
+if Existing then Existing:Destroy() end
+end
+end
+end
+local function CreatePlayerName(Target)
+if Target==Player then return end
+local Character=Target.Character
+if not Character then return end
+local Root=Character:FindFirstChild("HumanoidRootPart")
+if not Root then return end
+if Root:FindFirstChild("PepsiHubName") then return end
+local Billboard=Instance.new("BillboardGui")
+Billboard.Name="PepsiHubName"
+Billboard.Size=UDim2.new(0,140,0,30)
+Billboard.StudsOffset=Vector3.new(0,3,0)
+Billboard.AlwaysOnTop=true
+Billboard.Parent=Root
+local Label=Instance.new("TextLabel")
+Label.Size=UDim2.new(1,0,1,0)
+Label.BackgroundTransparency=1
+Label.Text=Target.DisplayName.."  @"..Target.Name
+Label.TextColor3=Color3.fromRGB(235,238,245)
+Label.TextStrokeTransparency=0.35
+Label.TextSize=11
+Label.Font=Enum.Font.GothamBold
+Label.Parent=Billboard
+end
+local function UpdatePlayerNames()
+if not PlayerNamesEnabled then RemovePlayerNames() return end
+for _,Target in ipairs(Players:GetPlayers()) do CreatePlayerName(Target) end
+end
+CreateToggle(VisualPage,"ESP Player",function(State)
+ESPEnabled=State
+if not State then
+for _,Target in ipairs(Players:GetPlayers()) do
+if Target.Character then
+local Existing=Target.Character:FindFirstChild("PepsiHubESP")
+if Existing then Existing:Destroy() end
+end
+end
+else
+UpdateESP()
+end
+end)
+CreateToggle(VisualPage,"Player Names",function(State)
+PlayerNamesEnabled=State
+if not State then RemovePlayerNames() else UpdatePlayerNames() end
+end)
+CreateSection(SettingsPage,"SETTINGS")
+CreateButton(SettingsPage,"SCAN MAP",function() RefreshTopEggs() end)
+CreateButton(SettingsPage,"RESET POSITION",function()
+SavedPosition=nil
+FlyingToHome=false
+end)
+CreateButton(SettingsPage,"RESET CHARACTER",function()
+local Humanoid=GetHumanoid()
+if Humanoid then Humanoid.Health=0 end
+end)
+CreateButton(SettingsPage,"TP HOME NOW",function()
+local Root=GetRoot()
+if Root and SavedPosition then Root.CFrame=SavedPosition end
+end)
+local SpeedSection=Instance.new("Frame")
+SpeedSection.Size=UDim2.new(1,0,0,50)
+SpeedSection.BackgroundColor3=Color3.fromRGB(17,19,25)
+SpeedSection.BorderSizePixel=0
+SpeedSection.Parent=SettingsPage
+local SpeedCorner=Instance.new("UICorner")
+SpeedCorner.CornerRadius=UDim.new(0,7)
+SpeedCorner.Parent=SpeedSection
+local SpeedLabel=Instance.new("TextLabel")
+SpeedLabel.Size=UDim2.new(1,-90,1,0)
+SpeedLabel.Position=UDim2.new(0,13,0,0)
+SpeedLabel.BackgroundTransparency=1
+SpeedLabel.Text="TP Home Speed: "..TPHomeSpeed
+SpeedLabel.TextColor3=Color3.fromRGB(205,208,216)
+SpeedLabel.TextSize=11
+SpeedLabel.Font=Enum.Font.GothamMedium
+SpeedLabel.TextXAlignment=Enum.TextXAlignment.Left
+SpeedLabel.Parent=SpeedSection
+local SpeedMinus=Instance.new("TextButton")
+SpeedMinus.Size=UDim2.new(0,30,0,28)
+SpeedMinus.Position=UDim2.new(1,-73,0.5,-14)
+SpeedMinus.BackgroundColor3=Color3.fromRGB(29,32,41)
+SpeedMinus.Text="−"
+SpeedMinus.TextColor3=Color3.fromRGB(210,214,223)
+SpeedMinus.TextSize=15
+SpeedMinus.Font=Enum.Font.GothamBold
+SpeedMinus.AutoButtonColor=false
+SpeedMinus.Parent=SpeedSection
+local SpeedMinusCorner=Instance.new("UICorner")
+SpeedMinusCorner.CornerRadius=UDim.new(0,6)
+SpeedMinusCorner.Parent=SpeedMinus
+local SpeedPlus=Instance.new("TextButton")
+SpeedPlus.Size=UDim2.new(0,30,0,28)
+SpeedPlus.Position=UDim2.new(1,-38,0.5,-14)
+SpeedPlus.BackgroundColor3=Color3.fromRGB(29,32,41)
+SpeedPlus.Text="+"
+SpeedPlus.TextColor3=Color3.fromRGB(210,214,223)
+SpeedPlus.TextSize=15
+SpeedPlus.Font=Enum.Font.GothamBold
+SpeedPlus.AutoButtonColor=false
+SpeedPlus.Parent=SpeedSection
+local SpeedPlusCorner=Instance.new("UICorner")
+SpeedPlusCorner.CornerRadius=UDim.new(0,6)
+SpeedPlusCorner.Parent=SpeedPlus
+SpeedMinus.MouseButton1Click:Connect(function()
+TPHomeSpeed=math.max(50,TPHomeSpeed-50)
+SpeedLabel.Text="TP Home Speed: "..TPHomeSpeed
+end)
+SpeedPlus.MouseButton1Click:Connect(function()
+TPHomeSpeed=math.min(2000,TPHomeSpeed+50)
+SpeedLabel.Text="TP Home Speed: "..TPHomeSpeed
+end)
+Player.CharacterAdded:Connect(function()
+task.wait(0.5)
+if WalkSpeedEnabled then
+local Humanoid=GetHumanoid()
+if Humanoid then Humanoid.WalkSpeed=WalkSpeedValue end
+end
+end)
+UserInputService.JumpRequest:Connect(function()
+if InfiniteJump then
+local Humanoid=GetHumanoid()
+if Humanoid then Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
+end
+end)
+RunService.Stepped:Connect(function()
+if NoClip then
+local Character=Player.Character
+if Character then
+for _,Object in ipairs(Character:GetDescendants()) do
+if Object:IsA("BasePart") then Object.CanCollide=false end
+end
+end
+end
+if WalkSpeedEnabled then
+local Humanoid=GetHumanoid()
+if Humanoid and Humanoid.WalkSpeed~=WalkSpeedValue then Humanoid.WalkSpeed=WalkSpeedValue end
+end
+end)
+RunService.Heartbeat:Connect(function(Delta)
+if FlyingToHome and SavedPosition then
+local Root=GetRoot()
+if Root then
+local Current=Root.Position
+local Target=SavedPosition.Position
+local Offset=Target-Current
+local Distance=Offset.Magnitude
+if Distance<=2 then
+Root.CFrame=SavedPosition
+FlyingToHome=false
+else
+local Step=math.min(TPHomeSpeed*Delta,Distance)
+Root.CFrame=CFrame.new(Current+Offset.Unit*Step,Target)
+end
+else
+FlyingToHome=false
+end
+end
+end)
+Players.PlayerAdded:Connect(function(Target)
+if ESPEnabled then
+task.wait(0.5)
+UpdateESP()
+end
+if PlayerNamesEnabled then
+task.wait(0.5)
+CreatePlayerName(Target)
+end
+end)
+Players.PlayerRemoving:Connect(function(Target)
+if Target.Character then
+local ESP=Target.Character:FindFirstChild("PepsiHubESP")
+if ESP then ESP:Destroy() end
+local NameTag=Target.Character:FindFirstChild("PepsiHubName")
+if NameTag then NameTag:Destroy() end
+end
+end)
